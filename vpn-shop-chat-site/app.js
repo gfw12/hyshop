@@ -94,6 +94,8 @@ const SYNC_KEYS = [
 
 let syncTimer = null;
 let isHydratingStore = false;
+let lastRenderedMessages = "";
+let storePollTimer = null;
 
 function collectLocalStore() {
   const store = {};
@@ -116,12 +118,16 @@ function syncStoreToServer() {
   if (isHydratingStore) return;
   clearTimeout(syncTimer);
   syncTimer = setTimeout(() => {
-    fetch("/api/store", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(collectLocalStore()),
-    }).catch(() => {});
+    pushStoreToServer();
   }, 150);
+}
+
+function pushStoreToServer() {
+  return fetch("/api/store", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(collectLocalStore()),
+  }).catch(() => {});
 }
 
 async function hydrateStoreFromServer() {
@@ -132,6 +138,25 @@ async function hydrateStoreFromServer() {
   } catch {
     // Local file preview or older deployments can still use localStorage.
   }
+}
+
+async function refreshStoreFromServer() {
+  try {
+    const response = await fetch("/api/store", { cache: "no-store" });
+    if (!response.ok) return false;
+    applyRemoteStore(await response.json());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function startRealtimeSync(renderCallback) {
+  clearInterval(storePollTimer);
+  storePollTimer = setInterval(async () => {
+    const ok = await refreshStoreFromServer();
+    if (ok) renderCallback();
+  }, 2500);
 }
 
 function loadProducts() {
@@ -592,6 +617,9 @@ function renderChat() {
   const body = document.querySelector("#chatBody");
   if (!body) return;
   const messages = loadMessages();
+  const signature = JSON.stringify(messages);
+  if (signature === lastRenderedMessages && body.innerHTML) return;
+  lastRenderedMessages = signature;
   body.innerHTML = messages.map((m) => `
     <div class="bubble ${m.from === "customer" ? "me" : ""}">
       <strong>${m.name}</strong>
@@ -640,10 +668,15 @@ function initFrontPage() {
 
     const messages = loadMessages();
     messages.push({ id: crypto.randomUUID(), from: "customer", name, text, time: Date.now() });
-    messages.push({ id: crypto.randomUUID(), from: "service", name: "客服", text: "您好，已收到咨询，我们会尽快回复。", time: Date.now() + 500 });
     saveMessages(messages);
+    pushStoreToServer();
     document.querySelector("#chatText").value = "";
     renderChat();
+  });
+
+  startRealtimeSync(() => {
+    renderChat();
+    renderProducts();
   });
 }
 
@@ -775,6 +808,7 @@ function sendAdminReply(event) {
     time: Date.now(),
   });
   saveMessages(messages);
+  pushStoreToServer();
   document.querySelector("#adminReplyText").value = "";
   renderAdminMessages();
 }
@@ -937,6 +971,12 @@ function initAdminPage() {
     renderAdminOrders();
     renderAdminMessages();
   }
+
+  startRealtimeSync(() => {
+    renderAdminMessages();
+    renderAdminOrders();
+    renderAdminStats();
+  });
 
   if (sessionStorage.getItem(STORE_KEYS.admin) === "yes") enterAdmin();
 
