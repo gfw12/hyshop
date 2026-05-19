@@ -39,6 +39,10 @@
         <form id="siteSettingsForm" class="site-settings">
           <label>网站名称<input id="siteName" required placeholder="例如：云桥优选商品站" /></label>
           <label>首页说明<textarea id="siteSubtitle" rows="3" placeholder="显示在首页标题下方的说明文字"></textarea></label>
+          <label>首页小标签<input id="heroEyebrow" placeholder="例如：精选上新" /></label>
+          <label>首页大标题<textarea id="heroTitle" rows="3" placeholder="显示在首页中间的大标题"></textarea></label>
+          <label>首页大标题说明<textarea id="heroText" rows="3" placeholder="显示在首页大标题下面的说明"></textarea></label>
+          <label>右侧统计标题<input id="heroCountLabel" placeholder="例如：今日可售商品" /></label>
           <button type="submit">保存网站名称</button>
         </form>
       </div>
@@ -56,8 +60,12 @@
       <div class="panel wide">
         <h2>收款码设置</h2>
         <form id="paymentSettingsForm" class="payment-settings">
-          <label>微信收款码图片地址<input id="wechatQr" placeholder="粘贴微信收款码图片链接，或填写本地图片路径" /></label>
-          <label>支付宝收款码图片地址<input id="alipayQr" placeholder="粘贴支付宝收款码图片链接，或填写本地图片路径" /></label>
+          <input id="wechatQr" type="hidden" />
+          <input id="alipayQr" type="hidden" />
+          <label>上传微信收款码<input id="wechatQrUpload" type="file" accept="image/*" /></label>
+          <div id="wechatQrPreview" class="image-preview">当前使用默认微信收款码</div>
+          <label>上传支付宝收款码<input id="alipayQrUpload" type="file" accept="image/*" /></label>
+          <div id="alipayQrPreview" class="image-preview">当前使用默认支付宝收款码</div>
           <div class="form-actions">
             <button type="submit">保存收款码</button>
             <button type="button" id="resetPaymentSettings" class="ghost">清空收款码</button>
@@ -92,18 +100,20 @@
       </div>
 
       <div class="panel">
-        <h2>上架 / 编辑商品</h2>
+        <h2>添加 / 编辑商品</h2>
         <form id="productForm" class="product-form">
           <input type="hidden" id="productId" />
+          <input type="hidden" id="image" />
           <label>商品名称<input id="name" required /></label>
           <label>分类<input id="category" list="categoryOptions" required /></label>
           <datalist id="categoryOptions"></datalist>
           <label>价格<input id="price" required placeholder="例如：299" /></label>
-          <label>图片地址<input id="image" placeholder="可填网络图片地址" /></label>
+          <label>上传商品照片<input id="imageUpload" type="file" accept="image/*" /></label>
+          <div id="imagePreview" class="image-preview">暂无商品照片</div>
           <label>库存<input id="stock" type="number" min="0" value="99" /></label>
           <label>商品描述<textarea id="description" rows="4" required></textarea></label>
           <div class="form-actions">
-            <button type="submit">保存商品</button>
+            <button type="submit">添加商品</button>
             <button type="button" id="resetForm" class="ghost">清空</button>
           </div>
         </form>

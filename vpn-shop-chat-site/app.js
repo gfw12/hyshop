@@ -49,6 +49,10 @@ const DEFAULT_PAYMENT_SETTINGS = {
 const DEFAULT_SITE_SETTINGS = {
   siteName: "云桥优选商品站",
   siteSubtitle: "上架商品、接待咨询、收集订单，并支持微信支付和支付宝付款方式。正式部署时可配置访问密码、VPN 或 IP 白名单。",
+  heroEyebrow: "精选上新",
+  heroTitle: "商品展示、顾客咨询和付款下单放在一个页面里。",
+  heroText: "顾客可以浏览商品、选择微信或支付宝提交订单，也可以通过右下角聊天入口咨询客服。",
+  heroCountLabel: "今日可售商品",
 };
 
 const DEFAULT_CHECKOUT_FIELDS = [
@@ -72,6 +76,62 @@ function readJSON(key, fallback) {
 
 function writeJSON(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+  syncStoreToServer();
+}
+
+const SYNC_KEYS = [
+  STORE_KEYS.products,
+  STORE_KEYS.messages,
+  STORE_KEYS.orders,
+  STORE_KEYS.analytics,
+  STORE_KEYS.paymentSettings,
+  STORE_KEYS.checkoutFields,
+  STORE_KEYS.categories,
+  STORE_KEYS.siteSettings,
+  STORE_KEYS.adminPassword,
+  "vpn_shop_customer_name",
+];
+
+let syncTimer = null;
+let isHydratingStore = false;
+
+function collectLocalStore() {
+  const store = {};
+  for (const key of SYNC_KEYS) {
+    const value = localStorage.getItem(key);
+    if (value !== null) store[key] = value;
+  }
+  return store;
+}
+
+function applyRemoteStore(store) {
+  isHydratingStore = true;
+  for (const [key, value] of Object.entries(store || {})) {
+    if (typeof value === "string") localStorage.setItem(key, value);
+  }
+  isHydratingStore = false;
+}
+
+function syncStoreToServer() {
+  if (isHydratingStore) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    fetch("/api/store", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(collectLocalStore()),
+    }).catch(() => {});
+  }, 150);
+}
+
+async function hydrateStoreFromServer() {
+  try {
+    const response = await fetch("/api/store", { cache: "no-store" });
+    if (!response.ok) return;
+    applyRemoteStore(await response.json());
+  } catch {
+    // Local file preview or older deployments can still use localStorage.
+  }
 }
 
 function loadProducts() {
@@ -111,7 +171,10 @@ function getCurrentCustomerName() {
 }
 
 function saveCurrentCustomerName(name) {
-  if (name) localStorage.setItem("vpn_shop_customer_name", name);
+  if (name) {
+    localStorage.setItem("vpn_shop_customer_name", name);
+    syncStoreToServer();
+  }
 }
 
 function getAdminPassword() {
@@ -120,6 +183,7 @@ function getAdminPassword() {
 
 function setAdminPassword(password) {
   localStorage.setItem(STORE_KEYS.adminPassword, password);
+  syncStoreToServer();
 }
 
 function loadAnalytics() {
@@ -149,6 +213,10 @@ function loadSiteSettings() {
   return {
     siteName: settings.siteName || DEFAULT_SITE_SETTINGS.siteName,
     siteSubtitle: settings.siteSubtitle || DEFAULT_SITE_SETTINGS.siteSubtitle,
+    heroEyebrow: settings.heroEyebrow || DEFAULT_SITE_SETTINGS.heroEyebrow,
+    heroTitle: settings.heroTitle || DEFAULT_SITE_SETTINGS.heroTitle,
+    heroText: settings.heroText || DEFAULT_SITE_SETTINGS.heroText,
+    heroCountLabel: settings.heroCountLabel || DEFAULT_SITE_SETTINGS.heroCountLabel,
   };
 }
 
@@ -164,6 +232,10 @@ function applySiteSettings() {
 
   if (headerTitle) headerTitle.textContent = isAdmin ? `${settings.siteName}后台` : settings.siteName;
   if (headerSub && !isAdmin) headerSub.textContent = settings.siteSubtitle;
+  if (document.querySelector("#heroEyebrowText")) document.querySelector("#heroEyebrowText").textContent = settings.heroEyebrow;
+  if (document.querySelector("#heroTitleText")) document.querySelector("#heroTitleText").textContent = settings.heroTitle;
+  if (document.querySelector("#heroBodyText")) document.querySelector("#heroBodyText").textContent = settings.heroText;
+  if (document.querySelector("#heroCountLabelText")) document.querySelector("#heroCountLabelText").textContent = settings.heroCountLabel;
   document.title = isAdmin ? `${settings.siteName} | 后台管理` : `${settings.siteName} | 商品展示`;
 }
 
@@ -192,6 +264,21 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function readImageFile(file, callback) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.addEventListener("load", () => callback(reader.result));
+  reader.readAsDataURL(file);
+}
+
+function renderImagePreview(previewId, src, emptyText) {
+  const preview = document.querySelector(`#${previewId}`);
+  if (!preview) return;
+  preview.innerHTML = src
+    ? `<img src="${src}" alt="图片预览">`
+    : `<span>${emptyText}</span>`;
 }
 
 function trackSiteView() {
@@ -698,6 +785,8 @@ function renderPaymentSettings() {
   const settings = loadPaymentSettings();
   document.querySelector("#wechatQr").value = settings.wechatQr || "";
   document.querySelector("#alipayQr").value = settings.alipayQr || "";
+  renderImagePreview("wechatQrPreview", settings.wechatQr, "当前使用默认微信收款码");
+  renderImagePreview("alipayQrPreview", settings.alipayQr, "当前使用默认支付宝收款码");
 }
 
 function renderSiteSettings() {
@@ -706,6 +795,10 @@ function renderSiteSettings() {
   const settings = loadSiteSettings();
   document.querySelector("#siteName").value = settings.siteName;
   document.querySelector("#siteSubtitle").value = settings.siteSubtitle;
+  document.querySelector("#heroEyebrow").value = settings.heroEyebrow;
+  document.querySelector("#heroTitle").value = settings.heroTitle;
+  document.querySelector("#heroText").value = settings.heroText;
+  document.querySelector("#heroCountLabel").value = settings.heroCountLabel;
 }
 
 function renderCheckoutFieldSettings() {
@@ -778,6 +871,8 @@ window.deleteCategoryByIndex = function deleteCategoryByIndex(index) {
 function resetProductForm() {
   document.querySelector("#productForm").reset();
   document.querySelector("#productId").value = "";
+  document.querySelector("#image").value = "";
+  renderImagePreview("imagePreview", "", "暂无商品照片");
 }
 
 window.editProduct = function editProduct(id) {
@@ -787,6 +882,7 @@ window.editProduct = function editProduct(id) {
     const el = document.querySelector(`#${key === "id" ? "productId" : key}`);
     if (el) el.value = product[key] ?? "";
   }
+  renderImagePreview("imagePreview", product.image, "暂无商品照片");
 };
 
 window.deleteProduct = function deleteProduct(id) {
@@ -879,11 +975,21 @@ function initAdminPage() {
   });
 
   document.querySelector("#resetForm").addEventListener("click", resetProductForm);
+  document.querySelector("#imageUpload").addEventListener("change", (event) => {
+    readImageFile(event.target.files[0], (dataUrl) => {
+      document.querySelector("#image").value = dataUrl;
+      renderImagePreview("imagePreview", dataUrl, "暂无商品照片");
+    });
+  });
   document.querySelector("#siteSettingsForm").addEventListener("submit", (event) => {
     event.preventDefault();
     saveSiteSettings({
       siteName: document.querySelector("#siteName").value.trim(),
       siteSubtitle: document.querySelector("#siteSubtitle").value.trim(),
+      heroEyebrow: document.querySelector("#heroEyebrow").value.trim(),
+      heroTitle: document.querySelector("#heroTitle").value.trim(),
+      heroText: document.querySelector("#heroText").value.trim(),
+      heroCountLabel: document.querySelector("#heroCountLabel").value.trim(),
     });
     applySiteSettings();
     renderSiteSettings();
@@ -912,6 +1018,18 @@ function initAdminPage() {
     event.target.reset();
     alert("后台密码已修改");
   });
+  document.querySelector("#wechatQrUpload").addEventListener("change", (event) => {
+    readImageFile(event.target.files[0], (dataUrl) => {
+      document.querySelector("#wechatQr").value = dataUrl;
+      renderImagePreview("wechatQrPreview", dataUrl, "当前使用默认微信收款码");
+    });
+  });
+  document.querySelector("#alipayQrUpload").addEventListener("change", (event) => {
+    readImageFile(event.target.files[0], (dataUrl) => {
+      document.querySelector("#alipayQr").value = dataUrl;
+      renderImagePreview("alipayQrPreview", dataUrl, "当前使用默认支付宝收款码");
+    });
+  });
   document.querySelector("#paymentSettingsForm").addEventListener("submit", (event) => {
     event.preventDefault();
     savePaymentSettings({
@@ -923,6 +1041,8 @@ function initAdminPage() {
   document.querySelector("#resetPaymentSettings").addEventListener("click", () => {
     if (!confirm("确定清空收款码设置吗？")) return;
     savePaymentSettings({ wechatQr: "", alipayQr: "" });
+    document.querySelector("#wechatQrUpload").value = "";
+    document.querySelector("#alipayQrUpload").value = "";
     renderPaymentSettings();
   });
   document.querySelector("#checkoutFieldForm").addEventListener("submit", (event) => {
@@ -970,5 +1090,7 @@ function initAdminPage() {
   document.querySelector("#replyCustomer").addEventListener("change", renderAdminMessages);
 }
 
-initFrontPage();
-initAdminPage();
+hydrateStoreFromServer().finally(() => {
+  initFrontPage();
+  initAdminPage();
+});

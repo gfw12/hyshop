@@ -5,6 +5,8 @@ const path = require("path");
 const PORT = Number(process.env.PORT || 8080);
 const SITE_PASSWORD = process.env.SITE_PASSWORD || "";
 const ROOT = __dirname;
+const DATA_DIR = path.join(ROOT, "data");
+const STORE_FILE = path.join(DATA_DIR, "store.json");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -45,8 +47,59 @@ function safePath(urlPath) {
   return resolved;
 }
 
+function sendJSON(res, status, data) {
+  res.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+  });
+  res.end(JSON.stringify(data));
+}
+
+function readBody(req, callback) {
+  let body = "";
+  req.on("data", (chunk) => {
+    body += chunk;
+    if (body.length > 20 * 1024 * 1024) req.destroy();
+  });
+  req.on("end", () => callback(body));
+}
+
+function readStore() {
+  try {
+    return JSON.parse(fs.readFileSync(STORE_FILE, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeStore(store, callback) {
+  fs.mkdir(DATA_DIR, { recursive: true }, (dirErr) => {
+    if (dirErr) return callback(dirErr);
+    fs.writeFile(STORE_FILE, JSON.stringify(store, null, 2), "utf8", callback);
+  });
+}
+
 const server = http.createServer((req, res) => {
   if (!checkPassword(req)) return unauthorized(res);
+
+  const requestPath = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`).pathname;
+  if (requestPath === "/api/store") {
+    if (req.method === "GET") return sendJSON(res, 200, readStore());
+    if (req.method === "POST") {
+      return readBody(req, (body) => {
+        try {
+          const nextStore = JSON.parse(body || "{}");
+          writeStore(nextStore, (err) => {
+            if (err) return sendJSON(res, 500, { ok: false, error: "Failed to save store" });
+            sendJSON(res, 200, { ok: true });
+          });
+        } catch {
+          sendJSON(res, 400, { ok: false, error: "Invalid JSON" });
+        }
+      });
+    }
+    return sendJSON(res, 405, { ok: false, error: "Method not allowed" });
+  }
 
   const file = safePath(req.url || "/");
   if (!file) {

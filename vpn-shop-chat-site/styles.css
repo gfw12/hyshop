@@ -327,8 +327,26 @@ input, textarea, select {
 .product-form { display: grid; gap: .9rem; }
 .product-form label, .checkout-card label, .payment-settings label { display: grid; gap: .35rem; color: var(--muted); font-weight: 700; }
 .payment-settings, .password-settings, .site-settings { display: grid; gap: .9rem; }
+.image-preview {
+  display: grid;
+  place-items: center;
+  min-height: 150px;
+  padding: .9rem;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  background: #fffdf8;
+  color: var(--muted);
+  text-align: center;
+}
+.image-preview img {
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: white;
+}
 .site-settings {
-  grid-template-columns: minmax(220px, 320px) 1fr auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
 }
 .site-settings label {
@@ -336,6 +354,9 @@ input, textarea, select {
   gap: .35rem;
   color: var(--muted);
   font-weight: 800;
+}
+.site-settings button {
+  width: max-content;
 }
 .password-settings {
   grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
