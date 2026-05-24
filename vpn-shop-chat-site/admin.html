@@ -104,12 +104,18 @@
         <form id="productForm" class="product-form">
           <input type="hidden" id="productId" />
           <input type="hidden" id="image" />
+          <input type="hidden" id="productWechatQr" />
+          <input type="hidden" id="productAlipayQr" />
           <label>商品名称<input id="name" required /></label>
           <label>分类<input id="category" list="categoryOptions" required /></label>
           <datalist id="categoryOptions"></datalist>
           <label>价格<input id="price" required placeholder="例如：299" /></label>
           <label>上传商品照片<input id="imageUpload" type="file" accept="image/*" /></label>
           <div id="imagePreview" class="image-preview">暂无商品照片</div>
+          <label>上传本商品微信收款码<input id="productWechatQrUpload" type="file" accept="image/*" /></label>
+          <div id="productWechatQrPreview" class="image-preview">未设置本商品微信收款码，将使用全局收款码</div>
+          <label>上传本商品支付宝收款码<input id="productAlipayQrUpload" type="file" accept="image/*" /></label>
+          <div id="productAlipayQrPreview" class="image-preview">未设置本商品支付宝收款码，将使用全局收款码</div>
           <label>库存<input id="stock" type="number" min="0" value="99" /></label>
           <label>商品描述<textarea id="description" rows="4" required></textarea></label>
           <div class="form-actions">
