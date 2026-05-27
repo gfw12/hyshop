@@ -44,6 +44,8 @@ const seedProducts = [
 const DEFAULT_PAYMENT_SETTINGS = {
   wechatQr: "./assets/wechat-qr.jpg",
   alipayQr: "./assets/alipay-qr.jpg",
+  enableWechat: true,
+  enableAlipay: true,
 };
 
 const DEFAULT_SITE_SETTINGS = {
@@ -223,9 +225,13 @@ function loadPaymentSettings() {
   const settings = readJSON(STORE_KEYS.paymentSettings, DEFAULT_PAYMENT_SETTINGS);
   const wechatQr = settings.wechatQr === "./assets/wechat-pay.jpg" ? DEFAULT_PAYMENT_SETTINGS.wechatQr : settings.wechatQr;
   const alipayQr = settings.alipayQr === "./assets/alipay.jpg" ? DEFAULT_PAYMENT_SETTINGS.alipayQr : settings.alipayQr;
+  const enableWechat = settings.enableWechat !== false;
+  const enableAlipay = settings.enableAlipay !== false;
   return {
     wechatQr: wechatQr || DEFAULT_PAYMENT_SETTINGS.wechatQr,
     alipayQr: alipayQr || DEFAULT_PAYMENT_SETTINGS.alipayQr,
+    enableWechat: enableWechat || !enableAlipay,
+    enableAlipay: enableAlipay,
   };
 }
 
@@ -428,6 +434,7 @@ window.openCheckout = function openCheckout(id) {
     <span>${checkoutProduct.category}</span>
     <b>${money(checkoutProduct.price)}</b>
   `;
+  renderPaymentOptions();
   renderCheckoutFields();
   updatePaymentTip();
   document.querySelector("#checkoutDialog").showModal();
@@ -455,6 +462,27 @@ function renderCheckoutFields() {
 function getCheckoutFieldValue(id) {
   const field = document.querySelector(`[data-checkout-field="${id}"]`);
   return field ? field.value.trim() : "";
+}
+
+function getEnabledPaymentMethods() {
+  const settings = loadPaymentSettings();
+  const methods = [];
+  if (settings.enableWechat) methods.push("微信支付");
+  if (settings.enableAlipay) methods.push("支付宝");
+  return methods.length ? methods : ["微信支付"];
+}
+
+function renderPaymentOptions() {
+  const box = document.querySelector("#paymentOptions");
+  if (!box) return;
+  const current = document.querySelector("input[name='payment']:checked")?.value;
+  const methods = getEnabledPaymentMethods();
+  box.innerHTML = methods.map((method, index) => `
+    <label class="payment-option">
+      <input type="radio" name="payment" value="${method}" ${method === current || (!current && index === 0) ? "checked" : ""} />
+      <span>${method}</span>
+    </label>
+  `).join("");
 }
 
 function updatePaymentTip() {
@@ -548,7 +576,12 @@ function submitOrder(event) {
   event.preventDefault();
   if (!checkoutProduct) return;
 
-  const payment = document.querySelector("input[name='payment']:checked").value;
+  const selectedPayment = document.querySelector("input[name='payment']:checked");
+  if (!selectedPayment) {
+    alert("请先选择支付方式");
+    return;
+  }
+  const payment = selectedPayment.value;
   const fieldValues = {};
   for (const field of loadCheckoutFields()) {
     fieldValues[field.id] = getCheckoutFieldValue(field.id);
@@ -638,6 +671,7 @@ function initFrontPage() {
 
   applySiteSettings();
   trackSiteView();
+  renderPaymentOptions();
   renderProducts();
   const savedCustomerName = getCurrentCustomerName();
   if (savedCustomerName) document.querySelector("#customerName").value = savedCustomerName;
@@ -657,7 +691,7 @@ function initFrontPage() {
   document.querySelector("#viewOrdersButton").addEventListener("click", openCustomerOrders);
   document.querySelector("#closeCustomerOrders").addEventListener("click", closeCustomerOrders);
   document.querySelector("#customerOrdersDone").addEventListener("click", closeCustomerOrders);
-  document.querySelectorAll("input[name='payment']").forEach((input) => input.addEventListener("change", updatePaymentTip));
+  document.querySelector("#paymentOptions").addEventListener("change", updatePaymentTip);
   document.querySelector("#checkoutForm").addEventListener("submit", submitOrder);
 
   document.querySelector("#chatForm").addEventListener("submit", (event) => {
@@ -679,6 +713,7 @@ function initFrontPage() {
 
   startRealtimeSync(() => {
     renderChat();
+    renderPaymentOptions();
     renderProducts();
   });
 }
@@ -834,6 +869,8 @@ function renderPaymentSettings() {
   const settings = loadPaymentSettings();
   document.querySelector("#wechatQr").value = settings.wechatQr || "";
   document.querySelector("#alipayQr").value = settings.alipayQr || "";
+  document.querySelector("#enableWechatPayment").checked = settings.enableWechat;
+  document.querySelector("#enableAlipayPayment").checked = settings.enableAlipay;
   renderImagePreview("wechatQrPreview", settings.wechatQr, "当前使用默认微信收款码");
   renderImagePreview("alipayQrPreview", settings.alipayQr, "当前使用默认支付宝收款码");
 }
@@ -1038,17 +1075,20 @@ function initAdminPage() {
   });
   document.querySelector("#paymentSettingsForm").addEventListener("submit", (event) => {
     event.preventDefault();
+    const enableWechat = document.querySelector("#enableWechatPayment").checked;
+    const enableAlipay = document.querySelector("#enableAlipayPayment").checked;
+    if (!enableWechat && !enableAlipay) {
+      alert("至少要选择一种支付方式");
+      return;
+    }
     savePaymentSettings({
       wechatQr: document.querySelector("#wechatQr").value.trim() || DEFAULT_PAYMENT_SETTINGS.wechatQr,
       alipayQr: document.querySelector("#alipayQr").value.trim() || DEFAULT_PAYMENT_SETTINGS.alipayQr,
+      enableWechat,
+      enableAlipay,
     });
     renderPaymentSettings();
     alert("统一收款码已保存");
-  });
-  document.querySelector("#resetPaymentSettings").addEventListener("click", () => {
-    savePaymentSettings(DEFAULT_PAYMENT_SETTINGS);
-    renderPaymentSettings();
-    alert("已恢复默认统一收款码");
   });
   document.querySelector("#siteSettingsForm").addEventListener("submit", (event) => {
     event.preventDefault();

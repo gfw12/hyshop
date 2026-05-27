@@ -62,13 +62,18 @@
         <form id="paymentSettingsForm" class="payment-settings">
           <input id="wechatQr" type="hidden" />
           <input id="alipayQr" type="hidden" />
+          <fieldset class="payment-method-settings">
+            <legend>选择添加支付方式</legend>
+            <label class="inline-check"><input id="enableWechatPayment" type="checkbox" checked /> 微信收款</label>
+            <label class="inline-check"><input id="enableAlipayPayment" type="checkbox" checked /> 支付宝收款</label>
+          </fieldset>
           <label>上传微信收款码<input id="wechatQrUpload" type="file" accept="image/*" /></label>
           <div id="wechatQrPreview" class="image-preview">当前使用默认微信收款码</div>
           <label>上传支付宝收款码<input id="alipayQrUpload" type="file" accept="image/*" /></label>
           <div id="alipayQrPreview" class="image-preview">当前使用默认支付宝收款码</div>
           <div class="form-actions">
             <button type="submit">保存收款码</button>
-            <button type="button" id="resetPaymentSettings" class="ghost">清空收款码</button>
+            <button type="button" id="resetPaymentSettings" class="ghost" disabled title="当前功能不可用">清空收款码（当前功能不可用）</button>
           </div>
         </form>
       </div>
