@@ -58,6 +58,22 @@
       </div>
 
       <div class="panel wide">
+        <h2>收款码设置</h2>
+        <form id="paymentSettingsForm" class="payment-settings">
+          <input id="wechatQr" type="hidden" />
+          <input id="alipayQr" type="hidden" />
+          <label>上传微信收款码<input id="wechatQrUpload" type="file" accept="image/*" /></label>
+          <div id="wechatQrPreview" class="image-preview">当前使用默认微信收款码</div>
+          <label>上传支付宝收款码<input id="alipayQrUpload" type="file" accept="image/*" /></label>
+          <div id="alipayQrPreview" class="image-preview">当前使用默认支付宝收款码</div>
+          <div class="form-actions">
+            <button type="submit">保存收款码</button>
+            <button type="button" id="resetPaymentSettings" class="ghost">清空收款码</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel wide">
         <h2>下单信息字段设置</h2>
         <div id="checkoutFieldList" class="field-config-list"></div>
         <form id="checkoutFieldForm" class="field-config-form">
@@ -88,18 +104,12 @@
         <form id="productForm" class="product-form">
           <input type="hidden" id="productId" />
           <input type="hidden" id="image" />
-          <input type="hidden" id="productWechatQr" />
-          <input type="hidden" id="productAlipayQr" />
           <label>商品名称<input id="name" required /></label>
           <label>分类<input id="category" list="categoryOptions" required /></label>
           <datalist id="categoryOptions"></datalist>
           <label>价格<input id="price" required placeholder="例如：299" /></label>
           <label>上传商品照片<input id="imageUpload" type="file" accept="image/*" /></label>
           <div id="imagePreview" class="image-preview">暂无商品照片</div>
-          <label>上传本商品微信收款码<input id="productWechatQrUpload" type="file" accept="image/*" /></label>
-          <div id="productWechatQrPreview" class="image-preview">未设置本商品微信收款码，将使用默认收款码</div>
-          <label>上传本商品支付宝收款码<input id="productAlipayQrUpload" type="file" accept="image/*" /></label>
-          <div id="productAlipayQrPreview" class="image-preview">未设置本商品支付宝收款码，将使用默认收款码</div>
           <label>库存<input id="stock" type="number" min="0" value="99" /></label>
           <label>商品描述<textarea id="description" rows="4" required></textarea></label>
           <div class="form-actions">

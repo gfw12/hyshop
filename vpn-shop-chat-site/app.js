@@ -467,10 +467,11 @@ function updatePaymentTip() {
 }
 
 function renderPaymentQr(method) {
+  if (checkoutProduct?.id) {
+    checkoutProduct = loadProducts().find((product) => product.id === checkoutProduct.id) || checkoutProduct;
+  }
   const settings = loadPaymentSettings();
-  const qrSrc = method === "微信支付"
-    ? (checkoutProduct?.productWechatQr || settings.wechatQr)
-    : (checkoutProduct?.productAlipayQr || settings.alipayQr);
+  const qrSrc = method === "微信支付" ? settings.wechatQr : settings.alipayQr;
   const qrImage = document.querySelector("#paymentQrImage");
   const qrEmpty = document.querySelector("#paymentQrEmpty");
 
@@ -697,7 +698,6 @@ function renderAdminProducts() {
       <span class="tag">${p.category}</span>
       <p>${p.description}</p>
       <small>浏览次数：${views[p.id] || 0}</small>
-      <small>专属收款码：微信${p.productWechatQr ? "已设置" : "未设置"} / 支付宝${p.productAlipayQr ? "已设置" : "未设置"}</small>
       <div class="form-actions">
         <button onclick="editProduct('${p.id}')">编辑</button>
         <button class="ghost danger" onclick="deleteProduct('${p.id}')">删除</button>
@@ -828,6 +828,16 @@ function renderSiteSettings() {
   document.querySelector("#heroCountLabel").value = settings.heroCountLabel;
 }
 
+function renderPaymentSettings() {
+  const form = document.querySelector("#paymentSettingsForm");
+  if (!form) return;
+  const settings = loadPaymentSettings();
+  document.querySelector("#wechatQr").value = settings.wechatQr || "";
+  document.querySelector("#alipayQr").value = settings.alipayQr || "";
+  renderImagePreview("wechatQrPreview", settings.wechatQr, "当前使用默认微信收款码");
+  renderImagePreview("alipayQrPreview", settings.alipayQr, "当前使用默认支付宝收款码");
+}
+
 function renderCheckoutFieldSettings() {
   const list = document.querySelector("#checkoutFieldList");
   if (!list) return;
@@ -899,23 +909,17 @@ function resetProductForm() {
   document.querySelector("#productForm").reset();
   document.querySelector("#productId").value = "";
   document.querySelector("#image").value = "";
-  document.querySelector("#productWechatQr").value = "";
-  document.querySelector("#productAlipayQr").value = "";
   renderImagePreview("imagePreview", "", "暂无商品照片");
-  renderImagePreview("productWechatQrPreview", "", "未设置本商品微信收款码，将使用默认收款码");
-  renderImagePreview("productAlipayQrPreview", "", "未设置本商品支付宝收款码，将使用默认收款码");
 }
 
 window.editProduct = function editProduct(id) {
   const product = loadProducts().find((p) => p.id === id);
   if (!product) return;
-  for (const key of ["id", "name", "category", "price", "image", "productWechatQr", "productAlipayQr", "stock", "description"]) {
+  for (const key of ["id", "name", "category", "price", "image", "stock", "description"]) {
     const el = document.querySelector(`#${key === "id" ? "productId" : key}`);
     if (el) el.value = product[key] ?? "";
   }
   renderImagePreview("imagePreview", product.image, "暂无商品照片");
-  renderImagePreview("productWechatQrPreview", product.productWechatQr, "未设置本商品微信收款码，将使用默认收款码");
-  renderImagePreview("productAlipayQrPreview", product.productAlipayQr, "未设置本商品支付宝收款码，将使用默认收款码");
 };
 
 window.deleteProduct = function deleteProduct(id) {
@@ -963,6 +967,7 @@ function initAdminPage() {
     adminApp.classList.remove("hidden");
     renderAdminStats();
     renderSiteSettings();
+    renderPaymentSettings();
     renderCheckoutFieldSettings();
     renderCategorySettings();
     renderAdminProducts();
@@ -998,8 +1003,6 @@ function initAdminPage() {
       category: document.querySelector("#category").value.trim(),
       price: document.querySelector("#price").value.trim(),
       image: document.querySelector("#image").value.trim(),
-      productWechatQr: document.querySelector("#productWechatQr").value.trim(),
-      productAlipayQr: document.querySelector("#productAlipayQr").value.trim(),
       stock: Number(document.querySelector("#stock").value || 0),
       description: document.querySelector("#description").value.trim(),
     };
@@ -1021,17 +1024,31 @@ function initAdminPage() {
       renderImagePreview("imagePreview", dataUrl, "暂无商品照片");
     });
   });
-  document.querySelector("#productWechatQrUpload").addEventListener("change", (event) => {
+  document.querySelector("#wechatQrUpload").addEventListener("change", (event) => {
     readImageFile(event.target.files[0], (dataUrl) => {
-      document.querySelector("#productWechatQr").value = dataUrl;
-      renderImagePreview("productWechatQrPreview", dataUrl, "未设置本商品微信收款码，将使用默认收款码");
+      document.querySelector("#wechatQr").value = dataUrl;
+      renderImagePreview("wechatQrPreview", dataUrl, "当前使用默认微信收款码");
     });
   });
-  document.querySelector("#productAlipayQrUpload").addEventListener("change", (event) => {
+  document.querySelector("#alipayQrUpload").addEventListener("change", (event) => {
     readImageFile(event.target.files[0], (dataUrl) => {
-      document.querySelector("#productAlipayQr").value = dataUrl;
-      renderImagePreview("productAlipayQrPreview", dataUrl, "未设置本商品支付宝收款码，将使用默认收款码");
+      document.querySelector("#alipayQr").value = dataUrl;
+      renderImagePreview("alipayQrPreview", dataUrl, "当前使用默认支付宝收款码");
     });
+  });
+  document.querySelector("#paymentSettingsForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    savePaymentSettings({
+      wechatQr: document.querySelector("#wechatQr").value.trim() || DEFAULT_PAYMENT_SETTINGS.wechatQr,
+      alipayQr: document.querySelector("#alipayQr").value.trim() || DEFAULT_PAYMENT_SETTINGS.alipayQr,
+    });
+    renderPaymentSettings();
+    alert("统一收款码已保存");
+  });
+  document.querySelector("#resetPaymentSettings").addEventListener("click", () => {
+    savePaymentSettings(DEFAULT_PAYMENT_SETTINGS);
+    renderPaymentSettings();
+    alert("已恢复默认统一收款码");
   });
   document.querySelector("#siteSettingsForm").addEventListener("submit", (event) => {
     event.preventDefault();
